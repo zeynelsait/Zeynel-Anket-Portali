@@ -1,0 +1,187 @@
+@using AnketPortali.ViewModels.Survey
+
+@model SurveyQuestionsViewModel
+@{
+    ViewData["Title"] = "Soru Ekleme";
+    Layout = "~/Views/Shared/_adminLayout.cshtml";
+}
+<div class="container">
+    <div class="card">
+        <div class="card-header">
+            <h3>@Model.SurveyTitle - Sorular</h3>
+            <button class="btn btn-primary" onclick="showAddQuestionModal()">
+                <i class="fas fa-plus"></i> Yeni Soru Ekle
+            </button>
+        </div>
+        <div class="card-body">
+            @foreach (var question in Model.Questions)
+            {
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="card-title">@question.QuestionText</h5>
+                            <button class="btn btn-danger btn-sm" onclick="deleteQuestion(@question.Id)">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                        <ul class="list-group mt-2">
+                            @foreach (var option in question.Options)
+                            {
+                                <li class="list-group-item">@option.OptionText</li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+   </div>
+
+<!-- Soru Ekleme Modalı -->
+<div class="modal fade" id="addQuestionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Yeni Soru Ekle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="questionForm">
+                    <div class="mb-3">
+                        <label class="form-label">Soru</label>
+                        <input type="text" class="form-control" id="questionText" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Seçenekler</label>
+                        <div id="optionsContainer">
+                            <div class="input-group mb-2">
+                                <input type="text" class="form-control option-input" required>
+                                <button type="button" class="btn btn-danger" onclick="removeOption(this)">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="addOption()">
+                            <i class="fas fa-plus"></i> Seçenek Ekle
+                        </button>
+                        <div class="form-text">En az 2 seçenek ekleyiniz.</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                <button type="button" class="btn btn-primary" onclick="saveQuestion()">Kaydet</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function showAddQuestionModal() {
+            $('#questionText').val('');
+            $('#optionsContainer').html(`
+                <div class="input-group mb-2">
+                    <input type="text" class="form-control option-input" required>
+                    <button type="button" class="btn btn-danger" onclick="removeOption(this)">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="input-group mb-2">
+                    <input type="text" class="form-control option-input" required>
+                    <button type="button" class="btn btn-danger" onclick="removeOption(this)">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `);
+            $('#addQuestionModal').modal('show');
+        }
+
+        function addOption() {
+            $('#optionsContainer').append(`
+                <div class="input-group mb-2">
+                    <input type="text" class="form-control option-input" required>
+                    <button type="button" class="btn btn-danger" onclick="removeOption(this)">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `);
+        }
+
+        function removeOption(button) {
+            if ($('.option-input').length > 2) {
+                $(button).closest('.input-group').remove();
+            } else {
+                alert('En az 2 seçenek olmalıdır!');
+            }
+        }
+
+                function saveQuestion() {
+            if (!validateForm()) return;
+
+            var question = {
+                surveyId: @Model.SurveyId,
+                questionText: $('#questionText').val(),
+                newQuestionText: $('#questionText').val(), // Her iki property'yi de doldur
+                options: [],
+                newOptions: [] // Yeni seçenekler için
+            };
+
+            $('.option-input').each(function() {
+                var optionText = $(this).val();
+                question.options.push({ optionText: optionText });
+                question.newOptions.push(optionText);
+            });
+
+            $('#saveQuestionBtn').prop('disabled', true);
+
+            $.ajax({
+                url: '/Survey/AddQuestion',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(question),
+                success: function(result) {
+                    if (result.success) {
+                        location.reload();
+                    } else {
+                        alert('Hata: ' + (result.error || 'Bilinmeyen bir hata oluştu'));
+                        $('#saveQuestionBtn').prop('disabled', false);
+                    }
+                },
+                error: function() {
+                    alert('Sunucu hatası!');
+                    $('#saveQuestionBtn').prop('disabled', false);
+                }
+            });
+        }
+
+        function validateForm() {
+            if (!$('#questionText').val().trim()) {
+                alert('Lütfen soru metnini giriniz');
+                return false;
+            }
+
+            var validOptions = 0;
+            $('.option-input').each(function() {
+                if ($(this).val().trim()) validOptions++;
+            });
+
+            if (validOptions < 2) {
+                alert('En az 2 seçenek girilmelidir');
+                return false;
+            }
+
+            return true;
+        }
+
+        function deleteQuestion(id) {
+            if (confirm('Bu soruyu silmek istediğinizden emin misiniz?')) {
+                $.post('/Survey/DeleteQuestion/' + id, function(result) {
+                    if (result.success) {
+                        location.reload();
+                    }
+                });
+            }
+        }
+    </script>
+} 

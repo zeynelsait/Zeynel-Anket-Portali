@@ -1,0 +1,34 @@
+Projeyi çalıştırmadan önce aşağıdaki adımları takip etmeniz gerekmektedir:
+
+appsettings.json Dosyasını Düzenleme
+Projenin appsettings.json dosyasına gidin ve ConnectionStrings bölümündeki sqlCon değerini kendi MSSQL bağlantı bilgilerinizle doldurun:
+
+"ConnectionStrings": {
+    "sqlCon": "Server=YOUR_SERVER;Database=YOUR_DATABASE;User Id=YOUR_USERNAME;Password=YOUR_PASSWORD;"
+}
+Migration Oluşturma ve Veritabanını Güncelleme
+
+Visual Studio’da üst menüden View (Görünüm) > Other Windows (Diğer Pencereler) > Package Manager Console (Paket Yöneticisi Konsolu) seçeneğini tıklayın.
+Açılan konsol ekranına aşağıdaki komutu yazın ve Enter tuşuna basın:
+add-migration mig1
+Bu işlem tamamlandığında bir migration dosyası oluşturulacaktır.
+Aynı konsol ekranına bu sefer aşağıdaki komutu yazın ve Enter tuşuna basın:
+
+update-database
+Bu işlem veritabanınızı güncelleyecek. İşlem biraz zaman alabilir, sabırlı olun.
+Projenin Çalıştırılması
+Projeyi çalıştırdığınızda, sizi doğrudan bir Login ekranı karşılayacaktır.
+
+Admin olarak giriş yapmak için aşağıdaki bilgileri kullanabilirsiniz:
+Kullanıcı Adı: zeyneladmin@admin.com
+Şifre: Admin..
+
+-Ajax İşlemleri
+-Kategori Ekleme Çıkarma Düzenleme
+-Üyeleri Listleme
+-Ankete Soru Ekleme
+
+-SignalR
+-SignalR şu şekilde çalışıyor, birisi anket başlamadan önce sohbet odasına katılabiliyor denemek istersen şöyle yapabilirsin. Bir tane kullancı hesabını chormda(sana kalmış) aç birde linki kopyala opera (sana kalmış) burada yapıştır ama burada normal kullanıcı olarak aç zaten sonra ikisindede chat kısmına tıklayıp yazışabilirsin eğer başka tarayıcında varsa ondada admin hesabına giriş yap anlık olarak mesajları silme yetkisine sahip ve mesajları görebiliyor.
+
+-İdentity İle işlemler yapıldı

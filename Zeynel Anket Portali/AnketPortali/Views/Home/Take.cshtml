@@ -1,0 +1,210 @@
+﻿@using AnketPortali.ViewModels.Take
+@model SurveyTakeViewModel
+@{
+    ViewData["Title"] = "Take";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    .option-card {
+        transition: all 0.2s;
+    }
+
+        .option-card:hover {
+            transform: translateX(5px);
+        }
+
+    .btn-check:checked + .btn-outline-primary {
+        transform: translateX(10px);
+        font-weight: bold;
+    }
+
+    .progress {
+        border-radius: 10px;
+        background-color: #e9ecef;
+    }
+
+    .progress-bar {
+        border-radius: 10px;
+        transition: width 0.3s ease;
+    }
+
+    .card {
+        border: none;
+        box-shadow: 0 0 15px rgba(0,0,0,0.1);
+    }
+
+    .card-header {
+        border-top-left-radius: 15px !important;
+        border-top-right-radius: 15px !important;
+    }
+</style>
+
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h3 class="mb-0">@Model.SurveyTitle</h3>
+            <span class="badge bg-light text-primary">
+                Soru 
+            </span>
+        </div>
+
+        <div class="card-body">
+            <!-- Progress Bar -->
+            <div class="progress mb-4" style="height: 20px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated"
+                     role="progressbar"
+                     style="width: @(((Model.CurrentQuestionIndex + 1) * 100) / Model.TotalQuestions)%">
+                </div>
+            </div>
+
+            <!-- Soru -->
+            <div id="questionContainer">
+                <h4 class="mb-4">@Model.CurrentQuestion.QuestionText</h4>
+
+                <div class="options-container">
+                    @foreach (var option in Model.CurrentQuestion.Options)
+                    {
+                        <div class="option-card mb-3">
+                            <input type="radio"
+                                   class="btn-check"
+                                   name="options"
+                                   id="option_@option.Id"
+                                   value="@option.Id">
+                            <label class="btn btn-outline-primary w-100 text-start p-3"
+                                   for="option_@option.Id">
+                                @option.OptionText
+                            </label>
+                        </div>
+                    }
+                </div>
+
+                <div class="d-flex justify-content-between mt-4">
+                    <button type="button"
+                            class="btn btn-secondary"
+                            onclick="window.location.href='/'">
+                        <i class="fas fa-times"></i> Vazgeç
+                    </button>
+                    <button type="button"
+                            class="btn btn-primary"
+                            onclick="submitAnswer()">
+                        <span id="nextButtonText">Sonraki Soru</span>
+                        <i class="fas fa-arrow-right ms-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            updateNextButtonText();
+        });
+
+        function updateNextButtonText() {
+            if (@Model.CurrentQuestionIndex == @(Model.TotalQuestions - 1)) {
+                $('#nextButtonText').text('Anketi Tamamla');
+            }
+        }
+
+        function submitAnswer() {
+            var selectedOption = $('input[name="options"]:checked').val();
+
+            if (!selectedOption) {
+                Swal.fire({
+                    title: 'Uyarı!',
+                    text: 'Lütfen bir seçenek seçiniz.',
+                    icon: 'warning',
+                    confirmButtonText: 'Tamam'
+                });
+                return;
+            }
+
+            var answer = {
+                surveyId: @Model.SurveyId,
+                questionId: @Model.CurrentQuestion.Id,
+                selectedOptionId: parseInt(selectedOption)
+            };
+
+            // Butonu devre dışı bırak
+            $('.btn').prop('disabled', true);
+
+            $.ajax({
+                url: '/Survey/SubmitAnswer',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(answer),
+                success: function(result) {
+                    if (result.success) {
+                        if (result.completed) {
+                            Swal.fire({
+                                title: 'Tebrikler!',
+                                text: 'Anketi başarıyla tamamladınız.',
+                                icon: 'success',
+                                confirmButtonText: 'Tamam'
+                            }).then((result) => {
+                                window.location.href = '/Home/Index';
+                            });
+                        } else {
+                            // Progress bar'ı güncelle
+                            var progress = ((result.currentIndex + 1) * 100) / result.totalQuestions;
+                            $('.progress-bar').css('width', progress + '%');
+
+                            // Soruyu güncelle
+                            $('#questionContainer h4').text(result.nextQuestion.questionText);
+
+                            // Seçenekleri güncelle
+                            var optionsHtml = '';
+                            result.nextQuestion.options.forEach(function(option) {
+                                optionsHtml += `
+                                    <div class="option-card mb-3">
+                                        <input type="radio"
+                                               class="btn-check"
+                                               name="options"
+                                               id="option_${option.id}"
+                                               value="${option.id}">
+                                        <label class="btn btn-outline-primary w-100 text-start p-3"
+                                               for="option_${option.id}">
+                                            ${option.optionText}
+                                        </label>
+                                    </div>
+                                `;
+                            });
+                            $('.options-container').html(optionsHtml);
+
+                            // Son soru kontrolü
+                            if (result.currentIndex == result.totalQuestions - 1) {
+                                $('#nextButtonText').text('Anketi Tamamla');
+                            }
+
+                            // Butonları aktif et
+                            $('.btn').prop('disabled', false);
+                        }
+                    } else {
+                        Swal.fire({
+                            title: 'Hata!',
+                            text: 'Bir hata oluştu. Lütfen tekrar deneyiniz.',
+                            icon: 'error',
+                            confirmButtonText: 'Tamam'
+                        });
+                        $('.btn').prop('disabled', false);
+                    }
+                },
+                error: function() {
+                    Swal.fire({
+                        title: 'Hata!',
+                        text: 'Sunucu hatası oluştu. Lütfen tekrar deneyiniz.',
+                        icon: 'error',
+                        confirmButtonText: 'Tamam'
+                    });
+                    $('.btn').prop('disabled', false);
+                }
+            });
+        }
+    </script>
+}
+

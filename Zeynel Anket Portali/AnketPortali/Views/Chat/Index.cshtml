@@ -1,0 +1,181 @@
+﻿
+@{
+    ViewData["Title"] = "Index";
+    Layout = "~/Views/Shared/_adminLayout.cshtml";
+}
+
+@model List<ChatMessage>
+
+<style>
+ .message-item {
+           padding: 10px;
+           margin-bottom: 10px;
+           border: 1px solid #ddd;
+           border-radius: 5px;
+           position: relative;
+       }
+        .message-item.deleted {
+           opacity: 0.5;
+           background-color: #f8d7da;
+       }
+        .message-header {
+           margin-bottom: 5px;
+       }
+        .delete-btn {
+           position: absolute;
+           top: 10px;
+           right: 10px;
+       }
+        .messages-container {
+           max-height: 600px;
+           overflow-y: auto;
+        }
+   </style>
+<div class="card shadow mb-4">
+   <div class="card-header py-3 d-flex justify-content-between align-items-center">
+       <h6 class="m-0 font-weight-bold text-primary">Chat Mesajları </h6>
+       <div>
+           <span class="badge badge-success" id="activeUsersCount">0 Aktif Kullanıcı</span>
+       </div>
+   </div>
+   <div class="card-body">
+       <div class="chat-admin-container">
+           <div class="row">
+               <div class="col-md-8">
+                   <div class="messages-container">
+                       @foreach (var message in Model.OrderByDescending(m => m.SendTime))
+                       {
+                           <div class="message-item @(message.IsDeleted ? "deleted" : "")" id="message-@message.Id">
+                               <div class="message-header">
+                                   <strong>@message.SenderName</strong>
+                                   <small>@message.SendTime.ToString("dd.MM.yyyy HH:mm")</small>
+                               </div>
+                               <div class="message-content">
+                                   @message.Message
+                               </div>
+                               @if (!message.IsDeleted)
+                               {
+                                   <button class="btn btn-sm btn-danger delete-btn" onclick="deleteMessage(@message.Id)">
+                                       <i class="fas fa-trash"></i>
+                                   </button>
+                               }
+                           </div>
+                       }
+                   </div>
+               </div>
+               <div class="col-md-4">
+                   <div class="active-users-container">
+                       <h5>Aktif Kullanıcılar</h5>
+                       <ul id="activeUsersList" class="list-group">
+                       </ul>
+                   </div>
+               </div>
+           </div>
+       </div>
+   </div>
+</div>
+
+      
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.min.js"></script>
+   <script src="~/lib/microsoft/signalr/dist/browser/signalr.min.js"></script>
+    <script>
+        let connection = new signalR.HubConnectionBuilder()
+             .withUrl("/chatHub")
+             .build();
+          connection.on("ReceiveMessage", function (user, message,messageId) {
+             // Yeni mesaj geldiğinde mesajı ekle
+             const messagesContainer = document.querySelector('.messages-container');
+             const newMessage = `
+                 <div class="message-item" id="message-${Date.now()}">
+                     <div class="message-header">
+                         <strong>${user}</strong>
+                         <small>${new Date().toLocaleString()}</small>
+                     </div>
+                     <div class="message-content">
+                         ${message}
+                     </div>
+                     <button class="btn btn-sm btn-danger delete-btn" onclick="deleteMessage(${messageId})">
+                         <i class="fas fa-trash"></i>
+                     </button>
+                 </div>
+             `;
+
+             // Mesajı en üste ekle
+             messagesContainer.insertAdjacentHTML('afterbegin', newMessage);
+         });
+          connection.on("MessageDeleted", function (messageId, message) {
+             const messageElement = document.getElementById(`message-${messageId}`);
+             if (messageElement) {
+                 messageElement.classList.add('deleted');
+                 const deleteBtn = messageElement.querySelector('.delete-btn');
+                 if (deleteBtn) {
+                     deleteBtn.remove();
+                 }
+
+                 // Silindi mesajını ekle
+                 const messageContent = messageElement.querySelector('.message-content');
+                 messageContent.innerHTML += '<br><small class="text-danger">(Bu mesaj silindi)</small>';
+             }
+         });
+          function deleteMessage(id) {
+             Swal.fire({
+                 title: 'Emin misiniz?',
+                 text: "Bu mesajı silmek istediğinize emin misiniz?",
+                 icon: 'warning',
+                 showCancelButton: true,
+                 confirmButtonColor: '#3085d6',
+                 cancelButtonColor: '#d33',
+                 confirmButtonText: 'Evet, sil!',
+                 cancelButtonText: 'İptal'
+             }).then((result) => {
+                 if (result.isConfirmed) {
+                     $.post("/Chat/DeleteMessage", { id: id })
+                         .done(function(response) {
+                             if (response.success) {
+                                 Swal.fire(
+                                     'Silindi!',
+                                     'Mesaj başarıyla silindi.',
+                                     'success'
+                                 );
+                             } else {
+                                 Swal.fire(
+                                     'Hata!',
+                                     response.error || 'Bir hata oluştu.',
+                                     'error'
+                                 );
+                             }
+                         })
+                         .fail(function() {
+                             Swal.fire(
+                                 'Hata!',
+                                 'Sunucu hatası oluştu.',
+                                 'error'
+                             );
+                         });
+                 }
+             });
+         }
+         function loadActiveUsers() {
+            $.get("/Chat/GetActiveUsers", function(users) {
+                $("#activeUsersCount").text(`${users.length} Aktif Kullanıcı`);
+                $("#activeUsersList").empty();
+                users.forEach(user => {
+                    $("#activeUsersList").append(`<li class="list-group-item">${user}</li>`);
+                });
+            });
+        }
+         // Bağlantıyı başlat
+        connection.start()
+            .then(function () {
+                console.log("SignalR Connected");
+                loadActiveUsers();
+                setInterval(loadActiveUsers, 5000); // Her 5 saniyede bir aktif kullanıcıları güncelle
+            })
+            .catch(function (err) {
+                console.error(err);
+            });
+    </script>
+}
+

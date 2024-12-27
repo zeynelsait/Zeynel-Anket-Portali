@@ -1,0 +1,78 @@
+﻿@using AnketPortali.ViewModels
+@model HomeViewModel
+
+<div class="container">
+    <div class="row">
+        <!-- Kategoriler -->
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">Kategoriler</h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="javascript:void(0)" 
+                       class="list-group-item list-group-item-action active"
+                       onclick="filterSurveys('all')">
+                        Tümü
+                    </a>
+                    @foreach (var category in Model.Categories)
+                    {
+                        <a href="javascript:void(0)" 
+                           class="list-group-item list-group-item-action"
+                           onclick="filterSurveys(@category.Id)">
+                            @category.Name
+                            <span class="badge bg-primary float-end">
+                                @Model.Surveys.Count(s => s.CategoryId == category.Id)
+                            </span>
+                        </a>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Anketler -->
+        <div class="col-md-9">
+            <div class="row" id="surveyContainer">
+                @foreach (var survey in Model.Surveys)
+                {
+                    <div class="col-md-6 mb-4 survey-card" data-category="@survey.CategoryId">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                <span class="badge bg-primary">@survey.CategoryName</span>
+                                <span class="float-end text-muted">
+                                    @survey.CreatedDate.ToShortDateString()
+                                </span>
+                            </div>
+                            <div class="card-body">
+                                <h5 class="card-title">@survey.Title</h5>
+                                <p class="card-text">@survey.Description</p>
+                            </div>
+                            <div class="card-footer">
+                                <a href="/Home/Take/@survey.Id" class="btn btn-primary">
+                                    Ankete Katıl
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function filterSurveys(categoryId) {
+            if (categoryId === 'all') {
+                $('.survey-card').show();
+                $('.list-group-item').removeClass('active');
+                $('.list-group-item:first').addClass('active');
+            } else {
+                $('.survey-card').hide();
+                $('.survey-card[data-category="' + categoryId + '"]').show();
+                $('.list-group-item').removeClass('active');
+                $(event.target).closest('.list-group-item').addClass('active');
+            }
+        }
+    </script>
+}
